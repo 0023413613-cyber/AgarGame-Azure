@@ -26,6 +26,9 @@ function startGame(type) {
 
     document.getElementById('startMenuWrapper').style.maxHeight = '0px';
     document.getElementById('gameAreaWrapper').style.opacity = 1;
+
+    document.getElementById("exitButton").style.display = "block";
+
     if (!socket) {
         socket = io({ query: "type=" + type });
         setupSocket(socket);
@@ -33,6 +36,23 @@ function startGame(type) {
     if (!global.animLoopHandle)
         animloop();
     socket.emit('respawn');
+
+    seconds = 0;
+
+    if (timer) clearInterval(timer);
+
+    timer = setInterval(function () {
+
+        seconds++;
+
+        const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+
+        const s = String(seconds % 60).padStart(2, '0');
+
+        document.getElementById("timeValue").innerHTML = m + ":" + s;
+
+    },1000);
+
     window.chat.socket = socket;
     window.chat.registerFunctions();
     window.canvas.socket = socket;
@@ -149,8 +169,12 @@ $("#split").click(function () {
 });
 
 function handleDisconnect() {
-    socket.close();
-    if (!global.kicked) { // We have a more specific error message 
+
+    if (socket) {
+        socket.close();
+    }
+
+    if (!global.kicked) {
         render.drawErrorMessage('Disconnected!', graph, global.screen);
     }
 }
@@ -246,6 +270,13 @@ function setupSocket(socket) {
             player.cells = playerData.cells;
         }
         users = userData;
+
+        document.getElementById("playerCount").innerHTML = users.length;
+        if (global.playerType === 'player') {
+            document.getElementById("scoreValue").innerHTML =
+                Math.round(playerData.massTotal);
+        }
+
         foods = foodsList;
         viruses = virusList;
         fireFood = massList;
@@ -377,3 +408,38 @@ function resize() {
 
     socket.emit('windowResized', { screenWidth: global.screen.width, screenHeight: global.screen.height });
 }
+
+/* ==========================
+   Exit Game
+========================== */
+
+document.getElementById("exitButton").onclick = function () {
+
+    if(confirm("Exit this game?")){
+
+        if(timer){
+            clearInterval(timer);
+        }
+
+        if(socket){
+            socket.disconnect();
+        }
+
+        document.getElementById("exitButton").style.display = "none";
+
+        document.getElementById("gameAreaWrapper").style.opacity = 0;
+
+        document.getElementById("startMenuWrapper").style.maxHeight = "1000px";
+
+        global.gameStart = false;
+
+    }
+
+};
+/* ==========================
+   Game Timer
+========================== */
+
+let seconds = 0;
+let timer = null;
+
