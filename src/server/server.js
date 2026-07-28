@@ -8,6 +8,8 @@ const io = require('socket.io')(http);
 const SAT = require('sat');
 
 const gameLogic = require('./game-logic');
+const azureSql = require("./azureSql");
+const sql = require("mssql");
 const loggingRepositry = require('./repositories/logging-repository');
 const chatRepository = require('./repositories/chat-repository');
 const config = require('../../config');
@@ -272,12 +274,43 @@ const tickGame = () => {
 
         map.players.data[eater.playerIndex].changeCellMass(eater.cellIndex, cellGotEaten.mass);
 
+        let playerGotEaten = map.players.data[gotEaten.playerIndex];
+        const finalScore = playerGotEaten.massTotal;
+
         const playerDied = map.players.removeCell(gotEaten.playerIndex, gotEaten.cellIndex);
         if (playerDied) {
             let playerGotEaten = map.players.data[gotEaten.playerIndex];
             io.emit('playerDied', { name: playerGotEaten.name }); //TODO: on client it is `playerEatenName` instead of `name`
+            if (sockets[playerGotEaten.id]) {
             sockets[playerGotEaten.id].emit('RIP');
+            }
+            (async () => {
+                try {
+                    const pool = await azureSql.connectDatabase();
+
+                    const playTime = Math.floor((Date.now() - playerGotEaten.startTime) / 1000);
+
+                    console.log("Player:", playerGotEaten.name);
+                    console.log("Mass:", finalScore);
+                    console.log("PlayTime:", playTime);
+                    await pool.request()
+                        .input("PlayerName", sql.NVarChar, playerGotEaten.name)
+                        .input("Score", sql.Int, finalScore)
+                        .input("SurvivalTime", sql.Int, playTime)
+                        .query(`
+                            INSERT INTO GameScores
+                            (PlayerName, Score, SurvivalTime)
+                            VALUES
+                            (@PlayerName, @Score, @SurvivalTime)
+                        `);
+
+                    console.log("Saved score to Azure SQL");
+                } catch (err) {
+                    console.error(err);
+                }
+            })();
             map.players.removePlayerByIndex(gotEaten.playerIndex);
+            delete sockets[playerGotEaten.id];
         }
     });
 

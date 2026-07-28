@@ -85,6 +85,7 @@ class Cell {
 exports.Player = class {
     constructor(id) {
         this.id = id;
+        this.startTime = Date.now();
         this.hue = Math.round(Math.random() * 360);
         this.name = null;
         this.admin = false;
@@ -96,6 +97,7 @@ exports.Player = class {
 
     /* Initalizes things that change with every respawn */
     init(position, defaultPlayerMass) {
+        this.startTime = Date.now();
         this.cells = [new Cell(position.x, position.y, defaultPlayerMass, MIN_SPEED)];
         this.massTotal = defaultPlayerMass;
         this.x = position.x;
