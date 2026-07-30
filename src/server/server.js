@@ -16,8 +16,6 @@ const config = require('../../config');
 const util = require('./lib/util');
 const mapUtils = require('./map/map');
 const {getPosition} = require("./lib/entityUtils");
-const blobStorage = require("./blobStorage");
-const telemetry = require("./applicationInsights");
 
 let map = new mapUtils.Map(config);
 
@@ -68,12 +66,6 @@ const addPlayer = (socket) => {
             socket.disconnect();
         } else {
             console.log('[INFO] Player ' + clientPlayerData.name + ' connected!');
-            telemetry.trackEvent({
-            name: "Player Joined",
-             properties: {
-             player: clientPlayerData.name
-    }
-});
             sockets[socket.id] = socket;
 
             const sanitizedName = clientPlayerData.name.replace(/(<([^>]+)>)/ig, '');
@@ -103,18 +95,11 @@ const addPlayer = (socket) => {
             height: config.gameHeight
         });
         console.log('[INFO] User ' + currentPlayer.name + ' has respawned');
-
     });
 
     socket.on('disconnect', () => {
         map.players.removePlayerByID(currentPlayer.id);
         console.log('[INFO] User ' + currentPlayer.name + ' has disconnected');
-        telemetry.trackEvent({
-    name: "Player Leave",
-    properties: {
-        player: currentPlayer.name
-    }
-});
         socket.broadcast.emit('playerDisconnect', { name: currentPlayer.name });
     });
 
@@ -308,46 +293,20 @@ const tickGame = () => {
                     console.log("Player:", playerGotEaten.name);
                     console.log("Mass:", finalScore);
                     console.log("PlayTime:", playTime);
+                    await pool.request()
+                        .input("PlayerName", sql.NVarChar, playerGotEaten.name)
+                        .input("Score", sql.Int, finalScore)
+                        .input("SurvivalTime", sql.Int, playTime)
+                        .query(`
+                            INSERT INTO GameScores
+                            (PlayerName, Score, SurvivalTime)
+                            VALUES
+                            (@PlayerName, @Score, @SurvivalTime)
+                        `);
 
-await pool.request()
-    .input("PlayerName", sql.NVarChar, playerGotEaten.name)
-    .input("Score", sql.Int, finalScore)
-    .input("SurvivalTime", sql.Int, playTime)
-    .query(`
-        INSERT INTO GameScores
-        (PlayerName, Score, SurvivalTime)
-        VALUES
-        (@PlayerName, @Score, @SurvivalTime)
-    `);
-
-console.log("Saved score to Azure SQL");
-telemetry.trackEvent({
-    name: "Game Over",
-    properties: {
-        player: playerGotEaten.name,
-        score: finalScore,
-        playTime: playTime
-    }
-});
-
-const report = `Player: ${playerGotEaten.name}
-Score: ${finalScore}
-PlayTime: ${playTime}
-Date: ${new Date().toLocaleString()}`;
-
-await blobStorage.uploadText(
-    `${playerGotEaten.name}-${Date.now()}.txt`,
-    report
-);
-
-console.log("Saved report to Azure Blob Storage");
+                    console.log("Saved score to Azure SQL");
                 } catch (err) {
-                     telemetry.trackException({
-                     exception: err
-                                                       });
-                   console.error("========== ERROR ==========");
-                   console.error(err);
-                   console.error(err.stack);
+                    console.error(err);
                 }
             })();
             map.players.removePlayerByIndex(gotEaten.playerIndex);
@@ -424,10 +383,4 @@ setInterval(sendUpdates, 1000 / config.networkUpdateFactor);
 // Don't touch, IP configurations.
 var ipaddress = process.env.OPENSHIFT_NODEJS_IP || process.env.IP || config.host;
 var serverport = process.env.OPENSHIFT_NODEJS_PORT || process.env.PORT || config.port;
-http.listen(serverport, ipaddress, () => {
-    console.log('[DEBUG] Listening on ' + ipaddress + ':' + serverport);
-
-    telemetry.trackEvent({
-        name: "Game Started"
-    });
-});
+http.listen(serverport, ipaddress, () => console.log('[DEBUG] Listening on ' + ipaddress + ':' + serverport));
