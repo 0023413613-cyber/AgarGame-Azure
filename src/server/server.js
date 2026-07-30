@@ -10,6 +10,7 @@ const SAT = require('sat');
 const gameLogic = require('./game-logic');
 const azureSql = require("./azureSql");
 const sql = require("mssql");
+const { sendQueueMessage } = require("./queueStorage");
 const loggingRepositry = require('./repositories/logging-repository');
 const chatRepository = require('./repositories/chat-repository');
 const config = require('../../config');
@@ -54,7 +55,7 @@ function generateSpawnpoint() {
 const addPlayer = (socket) => {
     var currentPlayer = new mapUtils.playerUtils.Player(socket.id);
 
-    socket.on('gotit', function (clientPlayerData) {
+    socket.on('gotit', async function (clientPlayerData) {
         console.log('[INFO] Player ' + clientPlayerData.name + ' connecting!');
         currentPlayer.init(generateSpawnpoint(), config.defaultPlayerMass);
 
@@ -65,6 +66,7 @@ const addPlayer = (socket) => {
             socket.emit('kick', 'Invalid username.');
             socket.disconnect();
         } else {
+            
             console.log('[INFO] Player ' + clientPlayerData.name + ' connected!');
             sockets[socket.id] = socket;
 
@@ -305,6 +307,13 @@ const tickGame = () => {
                         `);
 
                     console.log("Saved score to Azure SQL");
+                    await sendQueueMessage({
+                        event: "PlayerDied",
+                        player: playerGotEaten.name,
+                        score: finalScore,
+                        survivalTime: playTime,
+                        time: new Date().toISOString()
+                    });
                 } catch (err) {
                     console.error(err);
                 }
