@@ -17,6 +17,7 @@ const config = require('../../config');
 const util = require('./lib/util');
 const mapUtils = require('./map/map');
 const {getPosition} = require("./lib/entityUtils");
+const { sendServiceBusMessage } = require("./serviceBus");
 
 let map = new mapUtils.Map(config);
 
@@ -307,13 +308,29 @@ const tickGame = () => {
                         `);
 
                     console.log("Saved score to Azure SQL");
-                    await sendQueueMessage({
-                        event: "PlayerDied",
-                        player: playerGotEaten.name,
-                        score: finalScore,
-                        survivalTime: playTime,
-                        time: new Date().toISOString()
-                    });
+                    try {
+                        await sendQueueMessage({
+                            event: "PlayerDied",
+                            player: playerGotEaten.name,
+                            score: finalScore,
+                            survivalTime: playTime,
+                            time: new Date().toISOString()
+                        });
+                    } catch (err) {
+                        console.error("Storage Queue:", err);
+                    }
+
+                    try {
+                        await sendServiceBusMessage({
+                            event: "PlayerDied",
+                            player: playerGotEaten.name,
+                            score: finalScore,
+                            survivalTime: playTime,
+                            time: new Date().toISOString()
+                        });
+                    } catch (err) {
+                        console.error("Service Bus:", err);
+                    }
                 } catch (err) {
                     console.error(err);
                 }

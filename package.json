@@ -41,6 +41,7 @@
   "dependencies": {
     "@azure/identity": "^4.13.1",
     "@azure/keyvault-secrets": "^4.11.2",
+    "@azure/service-bus": "^7.9.5",
     "@azure/storage-queue": "^12.31.0",
     "@babel/core": "^7.21.8",
     "@babel/eslint-parser": "^7.21.8",
