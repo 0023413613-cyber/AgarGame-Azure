@@ -9,4 +9,6 @@ appInsights
     .setAutoCollectConsole(true)
     .start();
 
-module.exports = appInsights.defaultClient;
+module.exports = {
+    client: appInsights.defaultClient
+};

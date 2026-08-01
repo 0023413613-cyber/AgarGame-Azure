@@ -18,6 +18,9 @@ const util = require('./lib/util');
 const mapUtils = require('./map/map');
 const {getPosition} = require("./lib/entityUtils");
 const { sendServiceBusMessage } = require("./serviceBus");
+const applicationInsights = require("./applicationInsights");
+
+
 
 let map = new mapUtils.Map(config);
 
@@ -69,6 +72,18 @@ const addPlayer = (socket) => {
         } else {
             
             console.log('[INFO] Player ' + clientPlayerData.name + ' connected!');
+            applicationInsights.client.trackTrace({
+                message: "Player Joined",
+                properties: {
+                    player: clientPlayerData.name
+                }
+            });
+            applicationInsights.client.trackEvent({
+                name: "PlayerJoined",
+                properties: {
+                    player: clientPlayerData.name
+                }
+            });
             sockets[socket.id] = socket;
 
             const sanitizedName = clientPlayerData.name.replace(/(<([^>]+)>)/ig, '');
@@ -103,6 +118,12 @@ const addPlayer = (socket) => {
     socket.on('disconnect', () => {
         map.players.removePlayerByID(currentPlayer.id);
         console.log('[INFO] User ' + currentPlayer.name + ' has disconnected');
+        applicationInsights.client.trackEvent({
+            name: "PlayerDisconnected",
+            properties: {
+                player: currentPlayer.name
+            }
+        });
         socket.broadcast.emit('playerDisconnect', { name: currentPlayer.name });
     });
 
@@ -308,6 +329,21 @@ const tickGame = () => {
                         `);
 
                     console.log("Saved score to Azure SQL");
+                    applicationInsights.client.trackTrace({
+                        message: "Azure SQL Saved",
+                        properties: {
+                            player: playerGotEaten.name,
+                            score: finalScore
+                        }
+                    });
+                    applicationInsights.client.trackEvent({
+                        name: "GameOver",
+                        properties: {
+                            player: playerGotEaten.name,
+                            score: finalScore,
+                            survivalTime: playTime
+                        }
+                    });
                     try {
                         await sendQueueMessage({
                             event: "PlayerDied",
@@ -315,6 +351,13 @@ const tickGame = () => {
                             score: finalScore,
                             survivalTime: playTime,
                             time: new Date().toISOString()
+                        });
+                        applicationInsights.client.trackTrace({
+                            message: "Storage Queue Sent",
+                            properties: {
+                                player: playerGotEaten.name,
+                                score: finalScore
+                            }
                         });
                     } catch (err) {
                         console.error("Storage Queue:", err);
@@ -328,19 +371,34 @@ const tickGame = () => {
                             survivalTime: playTime,
                             time: new Date().toISOString()
                         });
+                        applicationInsights.client.trackTrace({
+                            message: "Service Bus Sent",
+                            properties: {
+                                player: playerGotEaten.name,
+                                score: finalScore
+                            }
+                        });
                     } catch (err) {
                         console.error("Service Bus:", err);
                     }
-                } catch (err) {
-                    console.error(err);
-                }
-            })();
-            map.players.removePlayerByIndex(gotEaten.playerIndex);
-            delete sockets[playerGotEaten.id];
-        }
-    });
 
-};
+                    } catch (err) {
+                        applicationInsights.client.trackException({
+                            exception: err
+                        });
+
+                        console.error(err);
+                    }
+
+                    })(); // đóng async
+
+                    } // đóng if(playerDied)
+
+                    map.players.removePlayerByIndex(gotEaten.playerIndex);
+                    delete sockets[playerGotEaten.id];
+
+                    }); // đóng handleCollisions
+                    };
 
 const calculateLeaderboard = () => {
     const topPlayers = map.players.getTopPlayers();
