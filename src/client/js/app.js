@@ -172,6 +172,7 @@ function handleDisconnect() {
 
     if (socket) {
         socket.close();
+        socket = null;
     }
 
     if (!global.kicked) {
@@ -286,6 +287,7 @@ function setupSocket(socket) {
     socket.on('RIP', function () {
         global.gameStart = false;
         render.drawErrorMessage('You died!', graph, global.screen);
+        
         window.setTimeout(() => {
             document.getElementById('gameAreaWrapper').style.opacity = 0;
             document.getElementById('startMenuWrapper').style.maxHeight = '1000px';
@@ -421,8 +423,9 @@ document.getElementById("exitButton").onclick = function () {
             clearInterval(timer);
         }
 
-        if(socket){
+        if (socket) {
             socket.disconnect();
+            socket = null;
         }
 
         document.getElementById("exitButton").style.display = "none";
@@ -432,6 +435,11 @@ document.getElementById("exitButton").onclick = function () {
         document.getElementById("startMenuWrapper").style.maxHeight = "1000px";
 
         global.gameStart = false;
+        users = [];
+        foods = [];
+        viruses = [];
+        fireFood = [];
+        leaderboard = [];
 
     }
 

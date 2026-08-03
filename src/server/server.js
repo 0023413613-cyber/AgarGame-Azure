@@ -72,13 +72,13 @@ const addPlayer = (socket) => {
         } else {
             
             console.log('[INFO] Player ' + clientPlayerData.name + ' connected!');
-            applicationInsights.client.trackTrace({
+            applicationInsights.client?.trackTrace({
                 message: "Player Joined",
                 properties: {
                     player: clientPlayerData.name
                 }
             });
-            applicationInsights.client.trackEvent({
+            applicationInsights.client?.trackEvent({
                 name: "PlayerJoined",
                 properties: {
                     player: clientPlayerData.name
@@ -118,7 +118,7 @@ const addPlayer = (socket) => {
     socket.on('disconnect', () => {
         map.players.removePlayerByID(currentPlayer.id);
         console.log('[INFO] User ' + currentPlayer.name + ' has disconnected');
-        applicationInsights.client.trackEvent({
+        applicationInsights.client?.trackEvent({
             name: "PlayerDisconnected",
             properties: {
                 player: currentPlayer.name
@@ -329,14 +329,14 @@ const tickGame = () => {
                         `);
 
                     console.log("Saved score to Azure SQL");
-                    applicationInsights.client.trackTrace({
+                    applicationInsights.client?.trackTrace({
                         message: "Azure SQL Saved",
                         properties: {
                             player: playerGotEaten.name,
                             score: finalScore
                         }
                     });
-                    applicationInsights.client.trackEvent({
+                    applicationInsights.client?.trackEvent({
                         name: "GameOver",
                         properties: {
                             player: playerGotEaten.name,
@@ -352,7 +352,7 @@ const tickGame = () => {
                             survivalTime: playTime,
                             time: new Date().toISOString()
                         });
-                        applicationInsights.client.trackTrace({
+                        applicationInsights.client?.trackTrace({
                             message: "Storage Queue Sent",
                             properties: {
                                 player: playerGotEaten.name,
@@ -371,7 +371,7 @@ const tickGame = () => {
                             survivalTime: playTime,
                             time: new Date().toISOString()
                         });
-                        applicationInsights.client.trackTrace({
+                        applicationInsights.client?.trackTrace({
                             message: "Service Bus Sent",
                             properties: {
                                 player: playerGotEaten.name,
@@ -383,7 +383,7 @@ const tickGame = () => {
                     }
 
                     } catch (err) {
-                        applicationInsights.client.trackException({
+                        applicationInsights.client?.trackException({
                             exception: err
                         });
 
