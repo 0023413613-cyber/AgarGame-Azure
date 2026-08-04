@@ -285,18 +285,40 @@ function setupSocket(socket) {
 
     // Death.
     socket.on('RIP', function () {
-        global.gameStart = false;
-        render.drawErrorMessage('You died!', graph, global.screen);
-        
-        window.setTimeout(() => {
-            document.getElementById('gameAreaWrapper').style.opacity = 0;
-            document.getElementById('startMenuWrapper').style.maxHeight = '1000px';
-            if (global.animLoopHandle) {
-                window.cancelAnimationFrame(global.animLoopHandle);
-                global.animLoopHandle = undefined;
-            }
-        }, 2500);
+
+        console.log("RIP EVENT");
+
+    fetch("https://agar-game-function-g7bphscdbpcvetar.japaneast-01.azurewebsites.net/api/SavePlayerFunction", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            player: global.playerName,
+            score: Math.round(player.massTotal),
+            level: 1
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log("Azure Function:", data);
+    })
+    .catch(err => {
+        console.error(err);
     });
+
+    global.gameStart = false;
+    render.drawErrorMessage('You died!', graph, global.screen);
+
+    window.setTimeout(() => {
+        document.getElementById('gameAreaWrapper').style.opacity = 0;
+        document.getElementById('startMenuWrapper').style.maxHeight = '1000px';
+        if (global.animLoopHandle) {
+            window.cancelAnimationFrame(global.animLoopHandle);
+            global.animLoopHandle = undefined;
+        }
+    }, 2500);
+});
 
     socket.on('kick', function (reason) {
         global.gameStart = false;
